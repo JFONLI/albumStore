@@ -5,14 +5,18 @@ import java.util.List;
 
 import dto.Album;
 
+import javax.xml.crypto.Data;
+
 public class AlbumInfoDao {
 
     public void createAlbum(List<Album> albums) throws SQLException {
+        // Connection conn = null;
+        PreparedStatement preparedStatement = null;
         String insertQueryStatement = "INSERT INTO Albums (imageBase64, info) " +
                 "VALUES (?,?)";
 
-        try (Connection conn = DataSource.getConnection();
-             PreparedStatement preparedStatement = conn.prepareStatement(insertQueryStatement)){
+        try (Connection conn = DataSource.getConnection()){
+            preparedStatement = conn.prepareStatement(insertQueryStatement);
             for(Album album : albums){
                 preparedStatement.setString(1, album.getImageBase64());
                 preparedStatement.setString(2, album.getInfo());
@@ -21,17 +25,28 @@ public class AlbumInfoDao {
             preparedStatement.executeBatch();
         } catch (SQLException e){
             e.printStackTrace();
+        } finally {
+            try {
+//                if (conn != null) {
+//                    conn.close();
+//                }
+                if (preparedStatement != null) {
+                    preparedStatement.close();
+                }
+            } catch (SQLException se) {
+                se.printStackTrace();
+            }
         }
 
     }
 
     public Album findByAlbumId(int albumId){
         Album album = null;
-        Connection conn = null;
+        // Connection conn = null;
         PreparedStatement preparedStatement = null;
         String queryStatement = "SELECT * FROM Albums WHERE albumId = ?";
-        try {
-            conn = DataSource.getConnection();
+        try (Connection conn = DataSource.getConnection()){
+            // conn = DataSource.getConnection();
             preparedStatement = conn.prepareStatement(queryStatement);
             preparedStatement.setInt(1, albumId);
 
@@ -47,19 +62,18 @@ public class AlbumInfoDao {
 
         } catch (SQLException e) {
             e.printStackTrace();
-        }
-//        } finally {
-//            try {
+        } finally {
+            try {
 //                if (conn != null) {
 //                    conn.close();
 //                }
-//                if (preparedStatement != null) {
-//                    preparedStatement.close();
-//                }
-//            } catch (SQLException se) {
-//                se.printStackTrace();
-//            }
-//        }
+                if (preparedStatement != null) {
+                    preparedStatement.close();
+                }
+            } catch (SQLException se) {
+                se.printStackTrace();
+            }
+        }
         return album;
     }
 }

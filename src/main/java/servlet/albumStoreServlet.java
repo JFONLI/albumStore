@@ -51,7 +51,7 @@ public class albumStoreServlet extends HttpServlet {
         public void run() {
             while (true) {
                 try {
-                    if(temp.size() >= 10){
+                    if(temp.size() >= 200){
                         AlbumInfoDao albumInfoDao = new AlbumInfoDao();
                         System.out.println("Start writing to DB");
                         albumInfoDao.createAlbum(temp);
