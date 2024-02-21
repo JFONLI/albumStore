@@ -12,11 +12,16 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Collections;
 import java.util.regex.Matcher;
@@ -31,6 +36,40 @@ import org.json.JSONObject;
 public class albumStoreServlet extends HttpServlet {
     private List<Album> albums = Collections.synchronizedList(new ArrayList<>());
     private AtomicInteger batchCounter = new AtomicInteger(0);
+    private ExecutorService executorService = Executors.newFixedThreadPool(30);
+    private BlockingQueue<Album> blockingQueue = new LinkedBlockingQueue();
+
+    public void init(ServletConfig config) throws ServletException {
+        super.init(config);
+        BackgroundService backgroundService = new BackgroundService();
+        executorService.submit(backgroundService);
+    }
+
+    private class BackgroundService implements Runnable {
+        private List<Album> temp = new ArrayList<>();
+        @Override
+        public void run() {
+            while (true) {
+                try {
+                    if(temp.size() >= 10){
+                        AlbumInfoDao albumInfoDao = new AlbumInfoDao();
+                        System.out.println("Start writing to DB");
+                        albumInfoDao.createAlbum(temp);
+                        temp.clear();
+                    } else{
+                        temp.add(blockingQueue.take());
+                    }
+                    System.out.println("Queue Size : " + blockingQueue.size());
+                } catch (InterruptedException e) {
+                    System.out.println("BackgroundService interrupted");
+                    Thread.currentThread().interrupt();
+                } catch (SQLException e) {
+                    System.out.println("Error writing data to DB");
+                }
+            }
+        }
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException,
             IOException {
@@ -178,14 +217,12 @@ public class albumStoreServlet extends HttpServlet {
         // Store Data to DB
          UUID albumId = UUID.randomUUID();
          Album album = new Album(1, imageBase64, gson.toJson(albumInfo));
-        albums.add(album);
-        batchCounter.incrementAndGet();
-        System.out.println(batchCounter);
-
-        if(batchCounter.get() >= 10){
-            System.out.println("Need to write");
-            writeDataToDB();
+        try {
+            blockingQueue.put(album);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
+
 
         ImageMetaData imageData = new ImageMetaData();
         imageData.setImageSize(String.valueOf(imagePart.getSize()));
@@ -210,19 +247,6 @@ public class albumStoreServlet extends HttpServlet {
 //        response.setStatus(HttpServletResponse.SC_CREATED);
 //        response.getWriter().write(jsonImageData);
 
-    }
-
-    private void writeDataToDB() {
-        AlbumInfoDao albumInfoDao = new AlbumInfoDao();
-        // 批量写入数据到数据库
-        try {
-            batchCounter.set(0);
-            albumInfoDao.createAlbum(albums);
-            System.out.println("Data written to DB");
-            albums.clear();
-        } catch (SQLException e) {
-            System.out.println("Error : writeDataToDB");
-        }
     }
 
 }
