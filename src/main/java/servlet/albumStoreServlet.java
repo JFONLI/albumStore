@@ -8,11 +8,8 @@ import model.ErrorMsg;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import javax.servlet.annotation.*;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.sql.Connection;
+import java.io.*;
+import java.nio.Buffer;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -22,22 +19,18 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.Collections;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import dto.Album;
 import model.ImageMetaData;
-import org.json.JSONObject;
 
 @WebServlet(name = "Servlet", value = "/Servlet")
 @MultipartConfig
 public class albumStoreServlet extends HttpServlet {
-    private static ExecutorService executorService = Executors.newFixedThreadPool(5);
-    private static BlockingQueue<Album> blockingQueue = new LinkedBlockingQueue(10000);
+    private ExecutorService executorService = Executors.newFixedThreadPool(5);
+    private BlockingQueue<Album> blockingQueue = new LinkedBlockingQueue(100000);
 
-    private static Gson gson = new Gson();
+    private Gson gson = new Gson();
+    private byte[] imageContent = new byte[30000];
 
     public void init(ServletConfig config) throws ServletException {
         super.init(config);
@@ -54,7 +47,7 @@ public class albumStoreServlet extends HttpServlet {
                     if(temp.size() >= 50){
                         AlbumInfoDao albumInfoDao = new AlbumInfoDao();
                         System.out.println("Start writing to DB");
-                        albumInfoDao.createAlbum(temp);
+                        albumInfoDao.createAlbumBatch(temp);
                         temp.clear();
                     } else{
                         temp.add(blockingQueue.take());
@@ -151,18 +144,17 @@ public class albumStoreServlet extends HttpServlet {
             return;
         }
 
-        // Deal with profile part
-        InputStream profileInputStream = profilePart.getInputStream();
+        StringBuilder builder = null;
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(profileInputStream));
-        StringBuilder builder = new StringBuilder();
-        String line;
-        while((line = reader.readLine())!=null){
-            builder.append(line);
-            builder.append("\n");
+        try (InputStream profileInputStream = profilePart.getInputStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(profileInputStream))){
+            builder = new StringBuilder();
+            String line;
+            while((line = reader.readLine())!=null){
+                builder.append(line);
+                builder.append("\n");
+            }
         }
-
-        // System.out.println(builder.toString());
 
 //        Pattern pattern = Pattern.compile("\\{([^}]*)\\}");
 //        Matcher matcher = pattern.matcher(builder.toString());
@@ -186,6 +178,7 @@ public class albumStoreServlet extends HttpServlet {
 //            System.out.println("Cannot find Content");
 //        }
 
+
         AlbumInfo albumInfo;
         try{
             albumInfo = (AlbumInfo) gson.fromJson(builder.toString(), AlbumInfo.class);
@@ -198,19 +191,30 @@ public class albumStoreServlet extends HttpServlet {
             return;
         }
 
+        String imageBase64;
         // Deal with imagePart
-        BufferedReader imageBufferedReader = new BufferedReader(new InputStreamReader(imagePart.getInputStream()));
-        StringBuilder imageBuilder = new StringBuilder();
-        String imageLine;
-        while((imageLine = imageBufferedReader.readLine()) != null){
-            imageBuilder.append(imageLine);
-        }
-        byte[] imageContent = imageBuilder.toString().getBytes();
-        String imageBase64 = Base64.getEncoder().encodeToString(imageContent);
+//        try (BufferedReader imageBufferedReader = new BufferedReader(new InputStreamReader(imagePart.getInputStream()))){
+//            StringBuilder imageBuilder = new StringBuilder();
+//            String imageLine;
+//            while((imageLine = imageBufferedReader.readLine()) != null){
+//                imageBuilder.append(imageLine);
+//            }
+//            imageContent = imageBuilder.toString().getBytes();
+//            imageBase64 = Base64.getEncoder().encodeToString(imageContent);
+//        }
 
+        try (InputStream inputStream = imagePart.getInputStream()) {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024]; // 使用缓冲区
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+            imageContent = outputStream.toByteArray();
+            imageBase64 = Base64.getEncoder().encodeToString(imageContent);
+        }
 
         // Store Data to DB
-         UUID albumId = UUID.randomUUID();
          Album album = new Album(1, imageBase64, gson.toJson(albumInfo));
         try {
             blockingQueue.put(album);
@@ -224,8 +228,9 @@ public class albumStoreServlet extends HttpServlet {
         imageData.setAlbumID("1");
         String jsonImageData = gson.toJson(imageData);
 
-        response.setStatus(HttpServletResponse.SC_OK);
         response.getWriter().write(jsonImageData);
+        response.setStatus(HttpServletResponse.SC_OK);
+
     }
 
 }

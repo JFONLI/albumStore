@@ -5,11 +5,9 @@ import java.util.List;
 
 import dto.Album;
 
-import javax.xml.crypto.Data;
-
 public class AlbumInfoDao {
 
-    public void createAlbum(List<Album> albums) throws SQLException {
+    public void createAlbumBatch(List<Album> albums) throws SQLException {
         // Connection conn = null;
         PreparedStatement preparedStatement = null;
         String insertQueryStatement = "INSERT INTO Albums (imageBase64, info) " +
@@ -37,7 +35,6 @@ public class AlbumInfoDao {
                 se.printStackTrace();
             }
         }
-
     }
 
     public Album findByAlbumId(int albumId){
