@@ -34,10 +34,10 @@ import org.json.JSONObject;
 @WebServlet(name = "Servlet", value = "/Servlet")
 @MultipartConfig
 public class albumStoreServlet extends HttpServlet {
-    private List<Album> albums = Collections.synchronizedList(new ArrayList<>());
-    private AtomicInteger batchCounter = new AtomicInteger(0);
-    private ExecutorService executorService = Executors.newFixedThreadPool(30);
-    private BlockingQueue<Album> blockingQueue = new LinkedBlockingQueue();
+    private static ExecutorService executorService = Executors.newFixedThreadPool(5);
+    private static BlockingQueue<Album> blockingQueue = new LinkedBlockingQueue(10000);
+
+    private static Gson gson = new Gson();
 
     public void init(ServletConfig config) throws ServletException {
         super.init(config);
@@ -51,7 +51,7 @@ public class albumStoreServlet extends HttpServlet {
         public void run() {
             while (true) {
                 try {
-                    if(temp.size() >= 200){
+                    if(temp.size() >= 50){
                         AlbumInfoDao albumInfoDao = new AlbumInfoDao();
                         System.out.println("Start writing to DB");
                         albumInfoDao.createAlbum(temp);
@@ -75,8 +75,6 @@ public class albumStoreServlet extends HttpServlet {
             IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
-
-        Gson gson = new Gson();
 
         String urlPath = request.getPathInfo();
         if(urlPath == null){
@@ -129,9 +127,6 @@ public class albumStoreServlet extends HttpServlet {
             IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
-
-        // Gson
-        Gson gson = new Gson();
 
         // Get requests parts
         Part imagePart = request.getPart("image");
@@ -231,22 +226,6 @@ public class albumStoreServlet extends HttpServlet {
 
         response.setStatus(HttpServletResponse.SC_OK);
         response.getWriter().write(jsonImageData);
-//        } catch(SQLException e) {
-//            ErrorMsg err = new ErrorMsg();
-//            err.setMsg("Database error: " + "Insert Data into DB " +  System.getProperty("MySQL_IP_ADDRESS"));
-//            String jsonErr = gson.toJson(err);
-//            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-//            response.getWriter().write(jsonErr);
-//        }
-
-//        // Testing
-//        ImageMetaData imageData = new ImageMetaData();
-//        // imageData.setImageSize(String.valueOf(imagePart.getSize()));
-//        String jsonImageData = gson.toJson(imageData);
-//
-//        response.setStatus(HttpServletResponse.SC_CREATED);
-//        response.getWriter().write(jsonImageData);
-
     }
 
 }
