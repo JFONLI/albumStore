@@ -30,11 +30,14 @@ public class AlbumInfoDao {
 //            preparedStatement.executeUpdate();
 
             for (Album album : albums) {
-                preparedStatement.setString(2, album.getImageBase64());
-                preparedStatement.setString(3, album.getInfo());
+                preparedStatement = conn.prepareStatement(insertQueryStatement);
+                preparedStatement.setString(1, album.getImageBase64());
+                preparedStatement.setString(2, album.getInfo());
                 preparedStatement.addBatch();
             }
             preparedStatement.executeBatch();
+        }catch (Exception e){
+            e.printStackTrace();
         } finally {
             try {
                 if (conn != null) {

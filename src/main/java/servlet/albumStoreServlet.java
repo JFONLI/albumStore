@@ -18,6 +18,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Collections;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,7 +29,7 @@ import org.json.JSONObject;
 @WebServlet(name = "Servlet", value = "/Servlet")
 @MultipartConfig
 public class albumStoreServlet extends HttpServlet {
-    private List<Album> albums = new ArrayList<>();
+    private List<Album> albums = Collections.synchronizedList(new ArrayList<>());
     private AtomicInteger batchCounter = new AtomicInteger(0);
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException,
@@ -181,7 +182,7 @@ public class albumStoreServlet extends HttpServlet {
         batchCounter.incrementAndGet();
         System.out.println(batchCounter);
 
-        if(batchCounter.equals(10)){
+        if(batchCounter.get() >= 10){
             System.out.println("Need to write");
             writeDataToDB();
         }
@@ -215,10 +216,10 @@ public class albumStoreServlet extends HttpServlet {
         AlbumInfoDao albumInfoDao = new AlbumInfoDao();
         // 批量写入数据到数据库
         try {
+            batchCounter.set(0);
             albumInfoDao.createAlbum(albums);
             System.out.println("Data written to DB");
             albums.clear();
-            batchCounter = 0;
         } catch (SQLException e) {
             System.out.println("Error : writeDataToDB");
         }
