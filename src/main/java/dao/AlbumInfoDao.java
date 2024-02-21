@@ -7,7 +7,7 @@ import dto.Album;
 
 public class AlbumInfoDao {
 
-    public void createAlbumBatch(List<Album> albums) throws SQLException {
+    public void createAlbumBatch(List<Album> albums) {
         // Connection conn = null;
         PreparedStatement preparedStatement = null;
         String insertQueryStatement = "INSERT INTO Albums (imageBase64, info) " +
@@ -21,6 +21,33 @@ public class AlbumInfoDao {
                 preparedStatement.addBatch();
             }
             preparedStatement.executeBatch();
+        } catch (SQLException e){
+            e.printStackTrace();
+        } finally {
+            try {
+//                if (conn != null) {
+//                    conn.close();
+//                }
+                if (preparedStatement != null) {
+                    preparedStatement.close();
+                }
+            } catch (SQLException se) {
+                se.printStackTrace();
+            }
+        }
+    }
+
+    public void createAlbum(Album album){
+        // Connection conn = null;
+        PreparedStatement preparedStatement = null;
+        String insertQueryStatement = "INSERT INTO Albums (imageBase64, info) " +
+                "VALUES (?,?)";
+
+        try (Connection conn = DataSource.getConnection()){
+            preparedStatement = conn.prepareStatement(insertQueryStatement);
+            preparedStatement.setString(1, album.getImageBase64());
+            preparedStatement.setString(2, album.getInfo());
+            preparedStatement.executeUpdate();
         } catch (SQLException e){
             e.printStackTrace();
         } finally {

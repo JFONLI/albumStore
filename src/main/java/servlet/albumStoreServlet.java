@@ -32,36 +32,36 @@ public class albumStoreServlet extends HttpServlet {
     private Gson gson = new Gson();
     private byte[] imageContent = new byte[30000];
 
-    public void init(ServletConfig config) throws ServletException {
-        super.init(config);
-        BackgroundService backgroundService = new BackgroundService();
-        executorService.submit(backgroundService);
-    }
-
-    private class BackgroundService implements Runnable {
-        private List<Album> temp = new ArrayList<>();
-        @Override
-        public void run() {
-            while (true) {
-                try {
-                    if(temp.size() >= 50){
-                        AlbumInfoDao albumInfoDao = new AlbumInfoDao();
-                        System.out.println("Start writing to DB");
-                        albumInfoDao.createAlbumBatch(temp);
-                        temp.clear();
-                    } else{
-                        temp.add(blockingQueue.take());
-                    }
-                    System.out.println("Queue Size : " + blockingQueue.size());
-                } catch (InterruptedException e) {
-                    System.out.println("BackgroundService interrupted");
-                    Thread.currentThread().interrupt();
-                } catch (SQLException e) {
-                    System.out.println("Error writing data to DB");
-                }
-            }
-        }
-    }
+//    public void init(ServletConfig config) throws ServletException {
+//        super.init(config);
+//        BackgroundService backgroundService = new BackgroundService();
+//        executorService.submit(backgroundService);
+//    }
+//
+//    private class BackgroundService implements Runnable {
+//        private List<Album> temp = new ArrayList<>();
+//        @Override
+//        public void run() {
+//            while (true) {
+//                try {
+//                    if(temp.size() >= 50){
+//                        AlbumInfoDao albumInfoDao = new AlbumInfoDao();
+//                        System.out.println("Start writing to DB");
+//                        albumInfoDao.createAlbumBatch(temp);
+//                        temp.clear();
+//                    } else{
+//                        temp.add(blockingQueue.take());
+//                    }
+//                    System.out.println("Queue Size : " + blockingQueue.size());
+//                } catch (InterruptedException e) {
+//                    System.out.println("BackgroundService interrupted");
+//                    Thread.currentThread().interrupt();
+//                } catch (SQLException e) {
+//                    System.out.println("Error writing data to DB");
+//                }
+//            }
+//        }
+//    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException,
@@ -217,19 +217,33 @@ public class albumStoreServlet extends HttpServlet {
         // Store Data to DB
          Album album = new Album(1, imageBase64, gson.toJson(albumInfo));
         try {
-            blockingQueue.put(album);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            AlbumInfoDao albumInfoDao =  new AlbumInfoDao();
+            albumInfoDao.createAlbum(album);
+            ImageMetaData imageData = new ImageMetaData();
+            imageData.setImageSize(String.valueOf(imagePart.getSize()));
+            imageData.setAlbumID("1");
+            String jsonImageData = gson.toJson(imageData);
+
+            response.getWriter().write(jsonImageData);
+            response.setStatus(HttpServletResponse.SC_OK);
+        } catch (Exception e){
+            e.printStackTrace();
         }
 
+//        try {
+//            blockingQueue.put(album);
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
 
-        ImageMetaData imageData = new ImageMetaData();
-        imageData.setImageSize(String.valueOf(imagePart.getSize()));
-        imageData.setAlbumID("1");
-        String jsonImageData = gson.toJson(imageData);
 
-        response.getWriter().write(jsonImageData);
-        response.setStatus(HttpServletResponse.SC_OK);
+//        ImageMetaData imageData = new ImageMetaData();
+//        imageData.setImageSize(String.valueOf(imagePart.getSize()));
+//        imageData.setAlbumID("1");
+//        String jsonImageData = gson.toJson(imageData);
+//
+//        response.getWriter().write(jsonImageData);
+//        response.setStatus(HttpServletResponse.SC_OK);
 
     }
 
