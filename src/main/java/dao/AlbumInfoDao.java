@@ -37,17 +37,27 @@ public class AlbumInfoDao {
         }
     }
 
-    public void createAlbum(Album album){
+    public int createAlbum(Album album){
         // Connection conn = null;
         PreparedStatement preparedStatement = null;
         String insertQueryStatement = "INSERT INTO Albums (imageBase64, info) " +
                 "VALUES (?,?)";
 
         try (Connection conn = DataSource.getConnection()){
-            preparedStatement = conn.prepareStatement(insertQueryStatement);
+            preparedStatement = conn.prepareStatement(insertQueryStatement,  Statement.RETURN_GENERATED_KEYS);
             preparedStatement.setString(1, album.getImageBase64());
             preparedStatement.setString(2, album.getInfo());
             preparedStatement.executeUpdate();
+
+            ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
+            System.out.println(generatedKeys);
+            if (generatedKeys.next()) {
+                int generatedId = generatedKeys.getInt(1); // 或者使用列名：generatedKeys.getInt("id");
+                System.out.println("Primary Key is：" + generatedId);
+                return generatedId;
+            } else {
+                System.out.println("Failed to get primary key");
+            }
         } catch (SQLException e){
             e.printStackTrace();
         } finally {
@@ -62,6 +72,7 @@ public class AlbumInfoDao {
                 se.printStackTrace();
             }
         }
+        return -1;
     }
 
     public Album findByAlbumId(int albumId){
@@ -79,7 +90,7 @@ public class AlbumInfoDao {
                 String imageBase64 = resultSet.getString("imageBase64");
                 String info = resultSet.getString("info");
 
-                album = new Album(1, imageBase64, info);
+                album = new Album(albumId, imageBase64, info);
             } else {
                 return null;
             }

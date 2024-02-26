@@ -215,13 +215,13 @@ public class albumStoreServlet extends HttpServlet {
         }
 
         // Store Data to DB
-         Album album = new Album(1, imageBase64, gson.toJson(albumInfo));
+        Album album = new Album(1, imageBase64, gson.toJson(albumInfo));
         try {
             AlbumInfoDao albumInfoDao =  new AlbumInfoDao();
-            albumInfoDao.createAlbum(album);
+            int albumId = albumInfoDao.createAlbum(album);
             ImageMetaData imageData = new ImageMetaData();
             imageData.setImageSize(String.valueOf(imagePart.getSize()));
-            imageData.setAlbumID("1");
+            imageData.setAlbumID(String.valueOf(albumId));
             String jsonImageData = gson.toJson(imageData);
 
             response.getWriter().write(jsonImageData);
