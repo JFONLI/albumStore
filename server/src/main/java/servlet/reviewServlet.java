@@ -34,37 +34,36 @@ public class reviewServlet extends HttpServlet {
     private void startConsumer() {
         Thread consumerThread = new Thread(() -> {
             try {
-                ConnectionFactory factory = new ConnectionFactory();
-                factory.setHost("localhost");
-                final Connection connection = factory.newConnection();
-                final Channel channel = connection.createChannel();
+
+                Channel channel = connection.createChannel();
                 channel.queueDeclare(QUEUE_NAME, false, false, false, null);
                 channel.basicQos(1);
                 DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                     String message = new String(delivery.getBody(), "UTF-8");
 
-                    System.out.println(" [x] Received '" + message + "'");
-                    try {
-                        doWork();
-                    } finally {
-                        System.out.println(" [x] Done");
-                        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                    String[] parts = message.split(":");
+                    String action = parts[0];
+                    int albumId = Integer.parseInt(parts[1]);
+
+                    if(action.equals("like")) {
+                        LikeDao likedao = new LikeDao();
+                        likedao.updateAlbumLikes(albumId, 1);
+                    } else if (action.equals("dislike")){
+                        LikeDao likedao = new LikeDao();
+                        likedao.updateAlbumDislikes(albumId, 1);
                     }
+                    channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
                 };
 
                 // process messages
                 channel.basicConsume(QUEUE_NAME, false, deliverCallback, consumerTag -> { });
 
-            } catch(IOException | TimeoutException e){
+            } catch(IOException e){
                 e.printStackTrace();
             }
         });
 
         consumerThread.start();
-    }
-
-    private static void doWork(){
-
     }
 
     @Override
@@ -111,21 +110,15 @@ public class reviewServlet extends HttpServlet {
         }
 
         String key = urlParts[2];
-        int albumId = Integer.parseInt(key);
-
-        LikeDao likeDao = new LikeDao();
-        int rowsAffected = 0;
-        if(message.equals("like")){
-            rowsAffected = likeDao.updateAlbumLikes(albumId, 1);
-        }
-        else{
-            rowsAffected = likeDao.updateAlbumDislikes(albumId, 1);
-        }
-        if(rowsAffected == 0){
+        message = urlParts[1] + ":" + key;
+        try (Channel channel = connection.createChannel()) {
+            channel.basicPublish("", QUEUE_NAME, null, message.getBytes("UTF-8"));
+        } catch (IOException | TimeoutException e) {
+            e.printStackTrace();
             ErrorMsg err = new ErrorMsg();
-            err.setMsg("Album not found");
+            err.setMsg("Failed to send message to RabbitMQ");
             String jsonErr = gson.toJson(err);
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             response.getWriter().write(jsonErr);
             return;
         }
