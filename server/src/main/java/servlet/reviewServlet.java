@@ -13,6 +13,11 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.DeliverCallback;
 import dao.LikeDao;
 import model.ErrorMsg;
+import org.apache.commons.pool2.BasePooledObjectFactory;
+import org.apache.commons.pool2.PooledObject;
+import org.apache.commons.pool2.impl.DefaultPooledObject;
+import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 
 @WebServlet(name = "Servlet", value = "/Servlet")
 public class reviewServlet extends HttpServlet {
@@ -20,13 +25,21 @@ public class reviewServlet extends HttpServlet {
     private Connection connection;
     private Gson gson = new Gson();
 
+    private GenericObjectPool<Channel> channelPool;
+
     public void init(ServletConfig config) throws ServletException {
         super.init(config);
         try {
             ConnectionFactory factory = new ConnectionFactory();
             factory.setHost("localhost");
             connection = factory.newConnection();
-            startConsumer();
+
+            GenericObjectPoolConfig<Channel> poolConfig = new GenericObjectPoolConfig<>();
+            poolConfig.setMaxTotal(10);
+            poolConfig.setMinIdle(5);
+            channelPool = new GenericObjectPool<>(new ChannelFactory(connection), poolConfig);
+
+            //startConsumer();
         } catch (IOException | TimeoutException e){
             e.printStackTrace();
         }
@@ -110,10 +123,14 @@ public class reviewServlet extends HttpServlet {
         }
 
         String key = urlParts[2];
-        message = urlParts[1] + ":" + key;
-        try (Channel channel = connection.createChannel()) {
-            channel.basicPublish("", QUEUE_NAME, null, message.getBytes("UTF-8"));
-        } catch (IOException | TimeoutException e) {
+        int albumId = Integer.parseInt(key);
+
+        try  {
+            Channel channel = getChannelFromPool();
+            String routingKey = message.equals("like") ? "like" : "dislike";
+            channel.basicPublish("", QUEUE_NAME, null, (routingKey + ":" + albumId).getBytes("UTF-8"));
+            returnChannelToPool(channel);
+        } catch (Exception e) {
             e.printStackTrace();
             ErrorMsg err = new ErrorMsg();
             err.setMsg("Failed to send message to RabbitMQ");
@@ -129,5 +146,37 @@ public class reviewServlet extends HttpServlet {
         response.getWriter().println("Write Successful");
 
 
+    }
+
+    private class ChannelFactory extends BasePooledObjectFactory<Channel>{
+        private Connection connection;
+
+        public ChannelFactory(Connection connection){
+            this.connection = connection;
+        }
+        @Override
+        public Channel create() throws Exception{
+            return connection.createChannel();
+        }
+        @Override
+        public PooledObject<Channel> wrap(Channel obj){
+            return new DefaultPooledObject<>(obj);
+        }
+        @Override
+        public void destroyObject(PooledObject<Channel> p) throws Exception{
+            p.getObject().close();
+        }
+    }
+
+    private Channel getChannelFromPool() throws Exception {
+        return channelPool.borrowObject();
+    }
+
+    private void returnChannelToPool(Channel channel) {
+        try {
+            channelPool.returnObject(channel);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
