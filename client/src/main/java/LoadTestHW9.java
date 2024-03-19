@@ -1,6 +1,11 @@
+import com.google.gson.Gson;
+import io.swagger.client.model.ImageMetaData;
+import io.swagger.client.model.OwnImageMetaData;
 import okhttp3.*;
-import java.io.*;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -8,24 +13,24 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 // Remember to change url and IPAddr
-public class LoadTest {
+public class LoadTestHW9 {
 
     private static final int THREAD_GROUP_SIZE = 10;
     private static final int NUM_THREAD_GROUPS = 10;
     // private static final String IPAddr = "AlbumStore-ALB-2028389129.us-west-2.elb.amazonaws.com";
     private static final String IPAddr = "localhost";
     private static final int DELAY = 2000; // milliseconds
-    private static final int REQUESTS_PER_THREADS = 1000;
+    private static final int REQUESTS_PER_THREADS = 100;
     private static final int MAX_RETRY = 5;
     private static AtomicInteger getSuccess = new AtomicInteger(0);
     private static AtomicInteger postSuccess = new AtomicInteger(0);
     private static final File image = new File("image_example.jpg");
+    private static Gson gson = new Gson();
+
 
     private static OkHttpClient client = new OkHttpClient.Builder()
             .connectionPool(new ConnectionPool(30, 1, TimeUnit.MINUTES)) // 設置連接池
@@ -154,19 +159,28 @@ public class LoadTest {
         for(int i=0; i<REQUESTS_PER_THREADS; i++){
 
             long postStartTime = System.currentTimeMillis();
+            String albumID = "";
             for(int k=0; k<MAX_RETRY; k++){
                 Response postResult = sendPostRequest();
-                if(postResult != null){
-                    if(postResult.code() == 200){
-                        long postEndTime = System.currentTimeMillis();
-                        long postLatency = postEndTime - postStartTime;
-                        System.out.println("POST DONE");
-                        performanceRecords.add(new PerformanceRecord(postStartTime, postEndTime, "POST", postLatency, postResult.code()));
-                        postSuccess.incrementAndGet();
-                        postResult.close();
+                if(postResult != null) {
+                    if(postResult.code() == 200) {
+                        try {
+                            String message = postResult.body().string();
+                            OwnImageMetaData ownImageMetaData = gson.fromJson(message, OwnImageMetaData.class);
+                            albumID = ownImageMetaData.getAlbumID();
+                            // System.out.println("Successful get AlbumId " + albumID);
+                            long postEndTime = System.currentTimeMillis();
+                            long postLatency = postEndTime - postStartTime;
+                            // System.out.println("POST DONE");
+                            performanceRecords.add(new PerformanceRecord(postStartTime, postEndTime, "POST", postLatency, postResult.code()));
+                            postSuccess.incrementAndGet();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        } finally {
+                            postResult.close();
+                        }
                         break;
-                    }
-                    else{
+                    } else {
                         postResult.close();
                     }
                 }
@@ -175,25 +189,9 @@ public class LoadTest {
                 waitSeconds(5);
             }
 
-            long getStartTime = System.currentTimeMillis();
-            for(int j=0; j<MAX_RETRY; j++){
-                Response getResult = sendGetRequest();
-                if(getResult != null){
-                    if(getResult.code() == 200){
-                        long getEndTime = System.currentTimeMillis();
-                        long getLatency = getEndTime - getStartTime;
-                        System.out.println("GET  DONE");
-                        performanceRecords.add(new PerformanceRecord(getStartTime, getEndTime, "GET", getLatency, getResult.code()));
-                        getSuccess.incrementAndGet();
-                        break;
-                    } else{
-                        getResult.close();
-                    }
-                }
-                if(getResult != null)   getResult.close();
-                System.out.println("Retrying GET request with " + (j+1) + " time");
-                waitSeconds(5);
-            }
+            likeRequest(albumID);
+            likeRequest(albumID);
+            dislikeRequest(albumID);
 
         }
     }
@@ -203,6 +201,39 @@ public class LoadTest {
             Thread.sleep(seconds * 1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
+        }
+    }
+    private static Response likeRequest(String albumId) {
+        RequestBody body = RequestBody.create(null, new byte[]{});
+        Request request = new Request.Builder()
+                .url("http://" + IPAddr + ":8080/albumStore_war_exploded/review/like/" + albumId)
+                //.url("http://" + IPAddr + ":8080/albumStore/albums")
+                //.url("http://35.163.31.108:8080/albumStore_war_exploded/albums")
+                .method("POST", body)
+                .build();
+        try (Response response = client.newCall(request).execute()){
+            // System.out.println("POST Status code : " + response.code() + " ");
+            return response;
+        } catch (IOException e){
+            System.out.println("POST error : " + e);
+            return null;
+        }
+    }
+
+    private static Response dislikeRequest(String albumId) {
+        RequestBody body = RequestBody.create(null, new byte[]{});
+        Request request = new Request.Builder()
+                .url("http://" + IPAddr + ":8080/albumStore_war_exploded/review/dislike/" + albumId)
+                //.url("http://" + IPAddr + ":8080/albumStore/albums")
+                //.url("http://35.163.31.108:8080/albumStore_war_exploded/albums")
+                .method("POST", body)
+                .build();
+        try (Response response = client.newCall(request).execute()){
+            // System.out.println("POST Status code : " + response.code() + " ");
+            return response;
+        } catch (IOException e){
+            System.out.println("POST error : " + e);
+            return null;
         }
     }
 
@@ -224,8 +255,10 @@ public class LoadTest {
                 //.url("http://35.163.31.108:8080/albumStore_war_exploded/albums")
                 .method("POST", body)
                 .build();
-        try (Response response = client.newCall(request).execute()){
+        try {
             // System.out.println("POST Status code : " + response.code() + " ");
+            // System.out.println(response.body().string());
+            Response response = client.newCall(request).execute();
             return response;
         } catch (IOException e){
             System.out.println("POST error : " + e);

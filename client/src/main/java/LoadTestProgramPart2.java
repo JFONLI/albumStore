@@ -31,7 +31,7 @@ public class LoadTestProgramPart2 {
         // AWS - Tomcat - DummyServer
         // IPAddr =  "http://54.185.63.202:8080/hw4";
         // AWS - Tomcat - TrueServer
-        IPAddr =  "http://54.148.3.22:8080/albumStore";
+        //IPAddr =  "http://54.148.3.22:8080/albumStore";
         //IPAddr =  "http://34.220.113.165:8080";
 
         runLoadTest();

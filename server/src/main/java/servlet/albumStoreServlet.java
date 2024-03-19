@@ -1,6 +1,10 @@
 package servlet;
 
+import java.util.Date;
+import java.text.SimpleDateFormat;
+
 import com.google.gson.Gson;
+import com.rabbitmq.client.DeliverCallback;
 import dao.AlbumInfoDao;
 import model.AlbumInfo;
 import model.ErrorMsg;
@@ -15,13 +19,13 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.*;
 
 import dto.Album;
 import model.ImageMetaData;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.Channel;
 
 @WebServlet(name = "Servlet", value = "/Servlet")
 @MultipartConfig
@@ -29,15 +33,56 @@ public class albumStoreServlet extends HttpServlet {
     private ExecutorService executorService = Executors.newFixedThreadPool(5);
     private BlockingQueue<Album> blockingQueue = new LinkedBlockingQueue(100000);
 
+    private Connection connection;
+    private final static String QUEUE_NAME = "like_dislike_queue";
+
     private Gson gson = new Gson();
     private byte[] imageContent = new byte[30000];
 
 //    public void init(ServletConfig config) throws ServletException {
 //        super.init(config);
-//        BackgroundService backgroundService = new BackgroundService();
-//        executorService.submit(backgroundService);
+//        try {
+//            ConnectionFactory factory = new ConnectionFactory();
+//            factory.setHost("localhost");
+//            connection = factory.newConnection();
+//            startConsumer();
+//        } catch (IOException | TimeoutException e){
+//            e.printStackTrace();
+//        }
 //    }
-//
+
+    private void startConsumer() {
+        Thread consumerThread = new Thread(() -> {
+            try {
+                ConnectionFactory factory = new ConnectionFactory();
+                factory.setHost("localhost");
+                final Connection connection = factory.newConnection();
+                final Channel channel = connection.createChannel();
+                channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+                channel.basicQos(1);
+                DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+                    String message = new String(delivery.getBody(), "UTF-8");
+
+                    System.out.println(" [x] Received '" + message + "'");
+                    try {
+                        System.out.println("Doing work");
+                    } finally {
+                        System.out.println(" [x] Done");
+                        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                    }
+                };
+
+                // process messages
+                channel.basicConsume(QUEUE_NAME, false, deliverCallback, consumerTag -> { });
+
+            } catch(IOException | TimeoutException e){
+                e.printStackTrace();
+            }
+        });
+
+        consumerThread.start();
+    }
+
 //    private class BackgroundService implements Runnable {
 //        private List<Album> temp = new ArrayList<>();
 //        @Override
@@ -156,28 +201,6 @@ public class albumStoreServlet extends HttpServlet {
             }
         }
 
-//        Pattern pattern = Pattern.compile("\\{([^}]*)\\}");
-//        Matcher matcher = pattern.matcher(builder.toString());
-//
-//        JSONObject jsonObject = new JSONObject();
-//        if (matcher.find()) {
-//            String jsonContent = matcher.group(1);
-//
-//            String[] keyValuePairs = jsonContent.split("\n");
-//            for (String pair : keyValuePairs) {
-//                String[] keyValue = pair.trim().split(":");
-//                if (keyValue.length == 2) {
-//                    String key = keyValue[0].trim();
-//                    String value = keyValue[1].trim();
-//                    jsonObject.put(key, value);
-//                }
-//            }
-//
-//            System.out.println(jsonObject.toString());
-//        } else {
-//            System.out.println("Cannot find Content");
-//        }
-
 
         AlbumInfo albumInfo;
         try{
@@ -214,7 +237,7 @@ public class albumStoreServlet extends HttpServlet {
             imageBase64 = Base64.getEncoder().encodeToString(imageContent);
         }
 
-        // Store Data to DB
+//         Store Data to DB
         Album album = new Album(1, imageBase64, gson.toJson(albumInfo));
         try {
             AlbumInfoDao albumInfoDao =  new AlbumInfoDao();
@@ -224,26 +247,12 @@ public class albumStoreServlet extends HttpServlet {
             imageData.setAlbumID(String.valueOf(albumId));
             String jsonImageData = gson.toJson(imageData);
 
+
             response.getWriter().write(jsonImageData);
             response.setStatus(HttpServletResponse.SC_OK);
         } catch (Exception e){
             e.printStackTrace();
         }
-
-//        try {
-//            blockingQueue.put(album);
-//        } catch (InterruptedException e) {
-//            throw new RuntimeException(e);
-//        }
-
-
-//        ImageMetaData imageData = new ImageMetaData();
-//        imageData.setImageSize(String.valueOf(imagePart.getSize()));
-//        imageData.setAlbumID("1");
-//        String jsonImageData = gson.toJson(imageData);
-//
-//        response.getWriter().write(jsonImageData);
-//        response.setStatus(HttpServletResponse.SC_OK);
 
     }
 

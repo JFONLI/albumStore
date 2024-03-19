@@ -13,11 +13,11 @@ public class DefaultApiExampleGET {
     public static void main(String[] args) {
 
         DefaultApi apiInstance = new DefaultApi();
-        apiInstance.getApiClient().setBasePath("http://54.148.3.22:8080/albumStore");
-        apiInstance.getApiClient().setBasePath("http://54.185.63.202:8080/hw4");
+        // apiInstance.getApiClient().setBasePath("http://54.148.3.22:8080/albumStore");
+        // apiInstance.getApiClient().setBasePath("http://54.185.63.202:8080/hw4");
 
         // apiInstance.getApiClient().setBasePath("http://localhost:8080");
-        // apiInstance.getApiClient().setBasePath("http://localhost:8080/albumStore_war_exploded");
+        apiInstance.getApiClient().setBasePath("http://localhost:8080/albumStore_war_exploded");
         try {
             ApiResponse<AlbumInfo> result = apiInstance.getAlbumByKey("f86e4dac-0553-4323-8b44-6321a2341953");
             System.out.println(result.getData());
