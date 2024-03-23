@@ -12,17 +12,22 @@ public class DataSource {
     private static HikariDataSource ds;
 
 
-    private static final String PORT = System.getProperty("MySQL_PORT");
-    private static final String USERNAME = System.getProperty("DB_USERNAME");
-    private static final String PASSWORD = System.getProperty("DB_PASSWORD");
-    private static final String HOST_NAME = System.getProperty("MySQL_IP_ADDRESS");
+//    private static final String PORT = System.getProperty("MySQL_PORT");
+//    private static final String USERNAME = System.getProperty("DB_USERNAME");
+//    private static final String PASSWORD = System.getProperty("DB_PASSWORD");
+//    private static final String HOST_NAME = System.getProperty("MySQL_IP_ADDRESS");
+    private static final String PORT = "3306";
+    private static final String USERNAME = "root";
+    private static final String PASSWORD = "02120407";
+    private static final String HOST_NAME = "database-1.czqu4aki8hux.us-west-2.rds.amazonaws.com";
+    // private static final String HOST_NAME = "localhost";
     private static final String DATABASE = "albumstore";
 
     static {
         try {
-            // String jdbcUrl = String.format("jdbc:mysql://%s:%s/%s?serverTimezone=America/Vancouver", HOST_NAME, PORT, DATABASE);
-            System.out.println(HOST_NAME);
-            String jdbcUrl = String.format("jdbc:mysql://%s:%s/%s", HOST_NAME, PORT, DATABASE);
+            String jdbcUrl = String.format("jdbc:mysql://%s:%s/%s?serverTimezone=America/Vancouver", HOST_NAME, PORT, DATABASE);
+            //String jdbcUrl = String.format("jdbc:mysql://%s:%s/%s", HOST_NAME, PORT, DATABASE);
+            System.out.println(jdbcUrl);
             config.setJdbcUrl( jdbcUrl );
             config.setUsername( USERNAME);
             config.setPassword( PASSWORD );

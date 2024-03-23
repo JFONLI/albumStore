@@ -21,8 +21,10 @@ public class LoadTestHW9 {
 
     private static final int THREAD_GROUP_SIZE = 10;
     private static final int NUM_THREAD_GROUPS = 10;
+
+    // private static final String IPAddr = "localhost";
+    private static final String IPAddr = "54.203.191.62";
     // private static final String IPAddr = "AlbumStore-ALB-2028389129.us-west-2.elb.amazonaws.com";
-    private static final String IPAddr = "localhost";
     private static final int DELAY = 2000; // milliseconds
     private static final int REQUESTS_PER_THREADS = 100;
     private static final int MAX_RETRY = 5;
@@ -206,9 +208,10 @@ public class LoadTestHW9 {
     private static Response likeRequest(String albumId) {
         RequestBody body = RequestBody.create(null, new byte[]{});
         Request request = new Request.Builder()
-                .url("http://" + IPAddr + ":8080/albumStore_war_exploded/review/like/" + albumId)
-                //.url("http://" + IPAddr + ":8080/albumStore/albums")
-                //.url("http://35.163.31.108:8080/albumStore_war_exploded/albums")
+                // .url("http://" + IPAddr + ":8080/albumStore_war_exploded/review/like/1")
+                // .url("http://localhost:8080/albumStore_war_exploded/review/like/3")
+                .url("http://" + IPAddr + ":8080/albumStore/review/like/" + albumId)
+                //.url("http://35.163.31.108:8080/albumStore_war_exploded/review/like/" + albumId)
                 .method("POST", body)
                 .build();
         try (Response response = client.newCall(request).execute()){
@@ -223,8 +226,9 @@ public class LoadTestHW9 {
     private static Response dislikeRequest(String albumId) {
         RequestBody body = RequestBody.create(null, new byte[]{});
         Request request = new Request.Builder()
-                .url("http://" + IPAddr + ":8080/albumStore_war_exploded/review/dislike/" + albumId)
-                //.url("http://" + IPAddr + ":8080/albumStore/albums")
+                // .url("http://" + IPAddr + ":8080/albumStore_war_exploded/review/dislike/" + albumId)
+                // .url("http://localhost:8080/albumStore_war_exploded/review/dislike/3")
+                .url("http://" + IPAddr + ":8080/albumStore/review/dislike/" + albumId)
                 //.url("http://35.163.31.108:8080/albumStore_war_exploded/albums")
                 .method("POST", body)
                 .build();
@@ -250,8 +254,8 @@ public class LoadTestHW9 {
                 .build();
 
         Request request = new Request.Builder()
-                .url("http://" + IPAddr + ":8080/albumStore_war_exploded/albums")
-                //.url("http://" + IPAddr + ":8080/albumStore/albums")
+                //.url("http://" + IPAddr + ":8080/albumStore_war_exploded/albums")
+                .url("http://" + IPAddr + ":8080/albumStore/albums")
                 //.url("http://35.163.31.108:8080/albumStore_war_exploded/albums")
                 .method("POST", body)
                 .build();

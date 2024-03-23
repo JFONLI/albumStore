@@ -3,7 +3,7 @@ package dao;
 import java.sql.*;
 import java.sql.PreparedStatement;
 
-public class LikeDao {
+public class ReviewDao {
     public int updateAlbumLikes(int albumId, int likesIncrement) {
         PreparedStatement preparedStatement = null;
         String updateQueryStatement = "UPDATE albums " +

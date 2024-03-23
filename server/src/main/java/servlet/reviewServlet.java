@@ -11,7 +11,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.DeliverCallback;
-import dao.LikeDao;
+import dao.ReviewDao;
 import model.ErrorMsg;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
@@ -59,10 +59,10 @@ public class reviewServlet extends HttpServlet {
                     int albumId = Integer.parseInt(parts[1]);
 
                     if(action.equals("like")) {
-                        LikeDao likedao = new LikeDao();
+                        ReviewDao likedao = new ReviewDao();
                         likedao.updateAlbumLikes(albumId, 1);
                     } else if (action.equals("dislike")){
-                        LikeDao likedao = new LikeDao();
+                        ReviewDao likedao = new ReviewDao();
                         likedao.updateAlbumDislikes(albumId, 1);
                     }
                     channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
@@ -128,6 +128,7 @@ public class reviewServlet extends HttpServlet {
         try  {
             Channel channel = getChannelFromPool();
             String routingKey = message.equals("like") ? "like" : "dislike";
+            channel.queueDeclare(QUEUE_NAME, false, false, false, null);
             channel.basicPublish("", QUEUE_NAME, null, (routingKey + ":" + albumId).getBytes("UTF-8"));
             returnChannelToPool(channel);
         } catch (Exception e) {
@@ -140,11 +141,9 @@ public class reviewServlet extends HttpServlet {
             return;
         }
 
-
         response.setStatus(HttpServletResponse.SC_CREATED);
         response.setContentType("text/plain");
         response.getWriter().println("Write Successful");
-
 
     }
 
