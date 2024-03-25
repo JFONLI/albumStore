@@ -23,7 +23,7 @@ public class LoadTestHW9 {
     private static final int NUM_THREAD_GROUPS = 10;
 
     // private static final String IPAddr = "localhost";
-    private static final String IPAddr = "54.203.191.62";
+    private static String IPAddr;
     // private static final String IPAddr = "AlbumStore-ALB-2028389129.us-west-2.elb.amazonaws.com";
     private static final int DELAY = 2000; // milliseconds
     private static final int REQUESTS_PER_THREADS = 100;
@@ -124,6 +124,8 @@ public class LoadTestHW9 {
 
 
     public static void main(String[] args) throws InterruptedException, IOException {
+
+        IPAddr = args[0];
 
         ExecutorService executor = Executors.newCachedThreadPool();
 

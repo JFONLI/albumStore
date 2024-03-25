@@ -50,9 +50,17 @@ public class MultiThreadedConsumer implements Runnable {
 
     public static void main(String[] args) {
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("54.203.191.62");
-        factory.setUsername("guest1");
-        factory.setPassword("guest1");
+//        factory.setHost("18.237.85.19");
+//        factory.setUsername("guest1");
+//        factory.setPassword("guest1");
+
+        String host = args[0];
+        String username = args[1];
+        String password = args[2];
+
+        factory.setHost(host);
+        factory.setUsername(username);
+        factory.setPassword(password);
 
         // 启动多个消费者实例，每个实例运行在一个单独的线程中
         for (int i = 0; i < 5; i++) {

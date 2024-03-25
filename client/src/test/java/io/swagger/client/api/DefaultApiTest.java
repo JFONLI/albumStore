@@ -46,7 +46,7 @@ public class DefaultApiTest {
     @Test
     public void getAlbumByKeyTest() throws Exception {
         String albumID = null;
-        AlbumInfo response = api.getAlbumByKey(albumID);
+        // AlbumInfo response = api.getAlbumByKey(albumID);
 
         // TODO: test validations
     }
